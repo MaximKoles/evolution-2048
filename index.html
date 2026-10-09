@@ -1,0 +1,1549 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Эволюция 2048 | От клетки до Человека Разумного</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: #0e121d;
+      background-image: 
+        radial-gradient(ellipse at 50% 0%, #1c263c 0%, #0d121c 70%),
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.015) 0px, rgba(255, 255, 255, 0.015) 2px, transparent 2px, transparent 4px);
+      color: #e2e8f0;
+      font-family: 'Press Start 2P', monospace, system-ui;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 16px 12px 36px;
+      overflow-x: hidden;
+      touch-action: pan-y;
+    }
+
+    .game-wrapper {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      align-items: center;
+    }
+
+    header {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #172033;
+      border: 3px solid #2b3954;
+      border-radius: 12px;
+      padding: 12px 14px;
+      box-shadow: 0 8px 0 #0b0e17, inset 0 2px 0 rgba(255,255,255,0.1);
+    }
+
+    .title-box h1 {
+      font-size: 15px;
+      line-height: 1.4;
+      letter-spacing: 1px;
+      color: #38bdf8;
+      text-shadow: 2px 2px 0 #095169;
+      text-transform: uppercase;
+    }
+
+    .title-box p {
+      font-size: 8px;
+      color: #94a3b8;
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+
+    .scores-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .score-badge {
+      background: #0b0f19;
+      border: 2px solid #26354f;
+      border-radius: 8px;
+      padding: 6px 10px;
+      text-align: center;
+      min-width: 78px;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.6);
+    }
+
+    .score-badge .label {
+      font-size: 7px;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .score-badge .val {
+      font-size: 12px;
+      color: #facc15;
+      text-shadow: 1px 1px 0 #854d0e;
+      margin-top: 5px;
+      letter-spacing: 0.5px;
+    }
+
+    .controls-bar {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn {
+      background: #1e293b;
+      color: #f1f5f9;
+      border: 2px solid #475569;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-family: inherit;
+      font-size: 9px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 5px 0 #0f172a;
+      transition: transform 0.08s, box-shadow 0.08s, background-color 0.1s;
+    }
+
+    .btn:hover {
+      background: #334155;
+      border-color: #38bdf8;
+    }
+
+    .btn:active {
+      transform: translateY(4px);
+      box-shadow: 0 1px 0 #0f172a;
+    }
+
+    .btn-gold {
+      background: #854d0e;
+      border-color: #eab308;
+      color: #fef08a;
+      box-shadow: 0 5px 0 #451a03;
+    }
+
+    .btn-gold:hover {
+      background: #a16207;
+      border-color: #fef08a;
+    }
+
+    .tile-sprite {
+      width: 100%;
+      height: 100%;
+      background-image: var(--spritesheet-url, url('https://taplink.st/p/6/a/c/c/71102893.png?0'));
+      background-size: 400% 300%;
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+      border-radius: 10px;
+    }
+
+    /* 4 columns x 3 rows mapping for the 12 stages */
+    /* Row 1: Aquatic origin */
+    .sprite-pos-1  { background-position: 0% 0%; }
+    .sprite-pos-2  { background-position: 33.333% 0%; }
+    .sprite-pos-3  { background-position: 66.666% 0%; }
+    .sprite-pos-4  { background-position: 100% 0%; }
+
+    /* Row 2: Devonian to Permian */
+    .sprite-pos-5  { background-position: 0% 50%; }
+    .sprite-pos-6  { background-position: 33.333% 50%; }
+    .sprite-pos-7  { background-position: 66.666% 50%; }
+    .sprite-pos-8  { background-position: 100% 50%; }
+
+    /* Row 3: Mammalia to Homo sapiens */
+    .sprite-pos-9  { background-position: 0% 100%; }
+    .sprite-pos-10 { background-position: 33.333% 100%; }
+    .sprite-pos-11 { background-position: 66.666% 100%; }
+    .sprite-pos-12 { background-position: 100% 100%; }
+
+    .board-outer {
+      position: relative;
+      width: 100%;
+      padding-top: 100%;
+      background: #090d16;
+      border: 4px solid #1f2b42;
+      border-radius: 16px;
+      box-shadow: 0 14px 0 #05070d, 0 20px 30px rgba(0, 0, 0, 0.7);
+      touch-action: none;
+      overflow: hidden;
+    }
+
+    .board-inner {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 10px;
+    }
+
+    .grid-background {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .grid-cell {
+      background: #141c2c;
+      border-radius: 12px;
+      border: none;
+      box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.45);
+    }
+
+    .tile-container {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      pointer-events: none;
+    }
+
+    .tile {
+      position: absolute;
+      top: 0;
+      left: 0;
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 120ms cubic-bezier(0.25, 1, 0.5, 1);
+      will-change: transform;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
+      border: none;
+      cursor: pointer;
+      pointer-events: auto;
+    }
+
+    .tile svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      image-rendering: pixelated;
+      shape-rendering: crispEdges;
+    }
+
+    .tile.tile-new {
+      animation: popIn 180ms cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards;
+    }
+
+    .tile.tile-merged {
+      animation: popMerge 180ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 5;
+    }
+
+    .tile.tile-moving-under {
+      z-index: 2;
+    }
+
+    @keyframes popIn {
+      0% {
+        transform: translate(var(--tx), var(--ty)) scale(0.2);
+        opacity: 0;
+      }
+      100% {
+        transform: translate(var(--tx), var(--ty)) scale(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes popMerge {
+      0% {
+        transform: translate(var(--tx), var(--ty)) scale(0.85);
+      }
+      50% {
+        transform: translate(var(--tx), var(--ty)) scale(1.15);
+      }
+      100% {
+        transform: translate(var(--tx), var(--ty)) scale(1);
+      }
+    }
+
+    .tile-tooltip {
+      position: absolute;
+      bottom: 4px;
+      left: 4px;
+      right: 4px;
+      background: rgba(10, 15, 25, 0.88);
+      color: #f8fafc;
+      font-size: 6px;
+      text-align: center;
+      border-radius: 4px;
+      padding: 3px 2px;
+      line-height: 1.3;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      opacity: 0;
+      transition: opacity 0.15s;
+      pointer-events: none;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+	  display: none;
+    }
+
+    .tile:hover .tile-tooltip {
+      opacity: 1;
+    }
+
+    .instructions {
+      width: 100%;
+      text-align: center;
+      font-size: 7px;
+      color: #64748b;
+      line-height: 1.8;
+      letter-spacing: 0.5px;
+    }
+
+    .instructions span.key {
+      background: #1b2538;
+      border: 1px solid #3b4d6e;
+      color: #38bdf8;
+      padding: 3px 5px;
+      border-radius: 4px;
+      display: inline-block;
+      margin: 1px;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(5, 8, 15, 0.88);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 14px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease-out;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      background: #151d2f;
+      border: 4px solid #334466;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 440px;
+      padding: 22px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      box-shadow: 0 16px 0 #070b14;
+      text-align: center;
+      max-height: 90vh;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .modal-card h2 {
+      font-size: 13px;
+      color: #38bdf8;
+      line-height: 1.5;
+    }
+
+    .modal-card p {
+      font-size: 8px;
+      color: #94a3b8;
+      line-height: 1.8;
+    }
+
+    .modal-icon-preview {
+      width: 112px;
+      height: 112px;
+      margin: 4px auto;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 3px solid #facc15;
+      box-shadow: 0 6px 0 #713f12;
+    }
+
+    .modal-icon-preview svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+    }
+
+    .tree-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      text-align: left;
+      margin-top: 10px;
+      padding-right: 2px;
+      width: 100%;
+    }
+
+    .tree-item {
+      background: #0d1322;
+      border: 2px solid #23314c;
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .tree-item.unlocked {
+      border-color: #38bdf8;
+      background: #0f182c;
+      box-shadow: 0 4px 14px rgba(56, 189, 248, 0.18);
+    }
+
+    .tree-item.locked {
+      opacity: 0.4;
+      filter: grayscale(1);
+    }
+
+    .tree-thumb {
+      width: 92px;
+      height: 92px;
+      border-radius: 10px;
+      overflow: hidden;
+      flex-shrink: 0;
+      background: #060911;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      border: 2px solid #2d3e5e;
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
+    }
+
+    .tree-thumb svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .tree-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .tree-info .t-num {
+      font-size: 9px;
+      color: #38bdf8;
+      line-height: 1.3;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+    }
+
+    .tree-info .t-name {
+      font-size: 11px;
+      color: #f8fafc;
+      line-height: 1.4;
+      white-space: normal;
+      word-break: break-word;
+    }
+
+    .tree-info .t-era {
+      font-size: 8px;
+      color: #e2e8f0;
+      line-height: 1.4;
+      background: rgba(56, 189, 248, 0.12);
+      padding: 2px 6px;
+      border-radius: 4px;
+      display: inline-block;
+      align-self: flex-start;
+      margin-top: 2px;
+    }
+
+    .tree-info .t-desc {
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.45;
+      margin-top: 4px;
+      font-weight: 400;
+    }
+
+    .modal-card::-webkit-scrollbar {
+      width: 6px;
+    }
+    .modal-card::-webkit-scrollbar-thumb {
+      background: #334466;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-wrapper">
+    <header>
+      <div class="title-box">
+        <h1>Эволюция 2048</h1>
+        <p>От клетки до Homo Sapiens</p>
+      </div>
+      <div class="scores-group">
+        <div class="score-badge">
+          <div class="label">Счет</div>
+          <div class="val" id="current-score">0</div>
+        </div>
+        <div class="score-badge">
+          <div class="label">Рекорд</div>
+          <div class="val" id="best-score">0</div>
+        </div>
+      </div>
+    </header>
+
+    <div class="controls-bar">
+      <button class="btn" id="btn-restart" title="Начать заново">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+        Заново
+      </button>
+
+      <button class="btn btn-gold" id="btn-encyclopedia" title="Древо видов">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15z"/></svg>
+        Древо эволюции
+      </button>
+    </div>
+
+    <div class="board-outer" id="board-touch-surface">
+      <div class="board-inner">
+        <div class="grid-background">
+          <div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div>
+          <div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div>
+          <div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div>
+          <div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div>
+        </div>
+        <div class="tile-container" id="tile-container"></div>
+      </div>
+    </div>
+
+    <div class="instructions">
+      Управление: <span class="key">▲</span><span class="key">▼</span><span class="key">◄</span><span class="key">►</span> или <span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span>.<br>
+      На смартфонах — свайпы по игровому полю.<br>
+      Соединяйте одинаковые формы для эволюции!
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-status">
+    <div class="modal-card">
+      <h2 id="status-title">Эволюционный триумф!</h2>
+      <div class="modal-icon-preview" id="status-icon"></div>
+      <p id="status-desc">Вы достигли вершины эволюционной лестницы!</p>
+      <div class="modal-actions">
+        <button class="btn" id="btn-keep-playing" style="display: none;">Продолжить</button>
+        <button class="btn btn-gold" id="btn-modal-restart">Начать заново</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-encyclopedia">
+    <div class="modal-card" style="max-width: 520px;">
+      <h2>Древо Эволюции</h2>
+      <p>12 ступеней развития жизни по мотивам пиксельного бестиария Земли:</p>
+      <div class="tree-grid" id="tree-grid-list"></div>
+      <div class="modal-actions" style="margin-top: 10px;">
+        <button class="btn" id="btn-close-encyclopedia">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const EVOLUTION_STAGES = [
+      {
+        level: 1,
+        value: 2,
+        name: "LUCA (Протоклетка)",
+        era: "4.0 млрд лет назад",
+        desc: "Протоклетка в первичном океане со спиралями древней РНК.",
+        svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="luca-bg" cx="50%" cy="40%" r="65%">
+              <stop offset="0%" stop-color="#142642"/>
+              <stop offset="50%" stop-color="#0f1b31"/>
+              <stop offset="100%" stop-color="#070c18"/>
+            </radialGradient>
+            <radialGradient id="luca-glow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#a5f3fc" stop-opacity="0.9"/>
+              <stop offset="45%" stop-color="#22d3ee" stop-opacity="0.35"/>
+              <stop offset="100%" stop-color="#0891b2" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <rect width="100" height="100" fill="url(#luca-bg)"/>
+          <!-- Ocean background microbes -->
+          <rect x="22" y="20" width="3" height="3" fill="#38bdf8" opacity="0.35"/>
+          <rect x="80" y="26" width="3.5" height="3.5" fill="#38bdf8" opacity="0.3"/>
+          <rect x="76" y="74" width="2.5" height="2.5" fill="#38bdf8" opacity="0.35"/>
+          <rect x="18" y="76" width="3" height="3" fill="#38bdf8" opacity="0.25"/>
+          <!-- Outer radial aura -->
+          <circle cx="50" cy="50" r="32" fill="url(#luca-glow)"/>
+          <!-- Pixelated round membrane -->
+          <path d="M42 26 H58 V28 H66 V32 H70 V36 H74 V42 H76 V58 H74 V64 H70 V68 H66 V72 H58 V74 H42 V72 H34 V68 H30 V64 H26 V58 H24 V42 H26 V36 H30 V32 H34 V28 H42 Z" fill="#0891b2" opacity="0.4"/>
+          <path d="M42 28 H58 V30 H64 V34 H68 V38 H72 V44 H74 V56 H72 V62 H68 V66 H64 V70 H58 V72 H42 V70 H36 V66 H32 V62 H28 V56 H26 V44 H28 V38 H32 V34 H36 V30 H42 Z" fill="#0c4a6e" stroke="#67e8f9" stroke-width="2"/>
+          <!-- Bright glowing core -->
+          <ellipse cx="50" cy="50" rx="14" ry="14" fill="#06b6d4" opacity="0.5"/>
+          <!-- Pixel coiled RNA core strands -->
+          <path d="M44 42 H54 V46 H44 V52 H56 V58 H46 V60" fill="none" stroke="#e0f2fe" stroke-width="2.5"/>
+          <path d="M48 38 H52 V44 H48 Z M40 48 H44 V54 H40 Z M56 46 H60 V52 H56 Z M50 56 H54 V62 H50 Z" fill="#bae6fd"/>
+          <rect x="42" y="40" width="3" height="3" fill="#ffffff"/>
+          <rect x="55" y="53" width="2.5" height="2.5" fill="#a5f3fc"/>
+        </svg>`
+      },
+      {
+        level: 2,
+        value: 4,
+        name: "Эукариот",
+        era: "2.1 млрд лет назад",
+        desc: "Клетка с клеточным ядром, эндосимбионтами и длинным изогнутым жгутиком.",
+        svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="euk-bg" cx="45%" cy="45%" r="65%">
+              <stop offset="0%" stop-color="#162e4c"/>
+              <stop offset="55%" stop-color="#0f2038"/>
+              <stop offset="100%" stop-color="#07101f"/>
+            </radialGradient>
+          </defs>
+          <rect width="100" height="100" fill="url(#euk-bg)"/>
+          <!-- Long curved pixelated flagellum (tail) -->
+          <path d="M54 22 C 68 14, 82 20, 80 34 C 76 52, 84 66, 88 78 C 90 84, 86 90, 80 92" fill="none" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"/>
+          <path d="M56 22 C 68 15, 80 22, 78 34 C 74 52, 82 66, 86 78" fill="none" stroke="#bae6fd" stroke-width="1.2"/>
+          <!-- Cell Membrane Outline -->
+          <path d="M32 20 H56 V24 H64 V30 H68 V38 H70 V58 H68 V66 H62 V72 H54 V76 H32 V72 H24 V66 H18 V58 H16 V38 H18 V30 H24 V24 H32 Z" fill="#0891b2" fill-opacity="0.3" stroke="#38bdf8" stroke-width="2.5"/>
+          <!-- Organelle dots & endoplasmic layers -->
+          <ellipse cx="43" cy="48" rx="20" ry="19" fill="none" stroke="#22c55e" stroke-width="2" stroke-dasharray="4 2"/>
+          <ellipse cx="43" cy="48" rx="15" ry="14" fill="none" stroke="#f59e0b" stroke-width="1.8" stroke-dasharray="3 3"/>
+          <!-- Big Orange/Red Nucleus -->
+          <rect x="36" y="41" width="14" height="14" rx="3" fill="#dc2626" stroke="#f87171" stroke-width="2"/>
+          <rect x="40" y="45" width="6" height="6" fill="#7f1d1d"/>
+          <rect x="38" y="43" width="3" height="3" fill="#fca5a5"/>
+          <!-- Mitochondria organelles -->
+          <ellipse cx="28" cy="38" rx="4" ry="2.5" fill="#15803d" stroke="#4ade80" stroke-width="1"/>
+          <ellipse cx="58" cy="56" rx="4" ry="2.5" fill="#15803d" stroke="#4ade80" stroke-width="1"/>
+          <ellipse cx="30" cy="58" rx="3.5" ry="2" fill="#b45309" stroke="#fbbf24" stroke-width="1"/>
+        </svg>`
+      },
+      {
+        level: 3,
+        value: 8,
+        name: "Первые многоклеточные",
+        era: "600 млн лет назад",
+        desc: "Сферическая пористая колония клеток — древнейший прообраз морской губки.",
+        svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="sponge-bg" cx="50%" cy="40%" r="65%">
+              <stop offset="0%" stop-color="#144d5c"/>
+              <stop offset="50%" stop-color="#0c3540"/>
+              <stop offset="100%" stop-color="#051c24"/>
+            </radialGradient>
+          </defs>
+          <rect width="100" height="100" fill="url(#sponge-bg)"/>
+          <!-- Ocean benthic foliage & sea bed -->
+          <path d="M0 90 Q 25 82, 50 88 T 100 86 L 100 100 L 0 100 Z" fill="#041a22" opacity="0.7"/>
+          <path d="M12 90 Q 18 72, 14 60 Q 20 74, 22 90" stroke="#083344" stroke-width="3" fill="none"/>
+          <path d="M84 92 Q 78 76, 82 64 Q 86 78, 92 92" stroke="#083344" stroke-width="3" fill="none"/>
+          <!-- Main Porous Sponge Cluster -->
+          <g transform="translate(50, 48)">
+            <!-- Outer Sphere base -->
+            <circle cx="0" cy="0" r="28" fill="#155e75" stroke="#67e8f9" stroke-width="2.5"/>
+            <!-- Pixel porous cell mosaic -->
+            <circle cx="-14" cy="-14" r="5" fill="#0e7490" stroke="#a5f3fc" stroke-width="1.5"/><circle cx="-14" cy="-14" r="2" fill="#083344"/>
+            <circle cx="2" cy="-18" r="5" fill="#0e7490" stroke="#a5f3fc" stroke-width="1.5"/><circle cx="2" cy="-18" r="2" fill="#083344"/>
+            <circle cx="16" cy="-12" r="5" fill="#0e7490" stroke="#a5f3fc" stroke-width="1.5"/><circle cx="16" cy="-12" r="2" fill="#083344"/>
+            <circle cx="-18" cy="2" r="5" fill="#0e7490" stroke="#a5f3fc" stroke-width="1.5"/><circle cx="-18" cy="2" r="2" fill="#083344"/>
+            <circle cx="-5" cy="-2" r="6" fill="#14b8a6" stroke="#ccfbf1" stroke-width="1.8"/><circle cx="-5" cy="-2" r="2.5" fill="#115e59"/>
+            <circle cx="11" cy="-1" r="5" fill="#0e7490" stroke="#a5f3fc" stroke-width="1.5"/><circle cx="11" cy="-1" r="2" fill="#083344"/>
+            <circle cx="20" cy="8" r="5" fill="#0e7490" stroke="#a5f3fc" stroke-width="1.5"/><circle cx="20" cy="8" r="2" fill="#083344"/>
+            <circle cx="-14" cy="16" r="5" fill="#0e7490" stroke="#a5f3fc" stroke-width="1.5"/><circle cx="-14" cy="16" r="2" fill="#083344"/>
+            <circle cx="2" cy="14" r="6" fill="#14b8a6" stroke="#ccfbf1" stroke-width="1.8"/><circle cx="2" cy="14" r="2.5" fill="#115e59"/>
+            <circle cx="16" cy="19" r="4.5" fill="#0e7490" stroke="#a5f3fc" stroke-width="1.5"/><circle cx="16" cy="19" r="2" fill="#083344"/>
+          </g>
+        </svg>`
+      },
+      {
+        level: 4,
+        value: 16,
+        name: "Базальное хордовое",
+        era: "520 млн лет назад",
+        desc: "Полупрозрачный ланцетник (пикайя) со светящейся хордой, нервной трубкой и миомерами.",
+        svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="chord-bg" x1="0" y1="0" x2="0" y2="100%">
+              <stop offset="0%" stop-color="#19657b"/>
+              <stop offset="55%" stop-color="#0f495b"/>
+              <stop offset="100%" stop-color="#082c38"/>
+            </linearGradient>
+          </defs>
+          <rect width="100" height="100" fill="url(#chord-bg)"/>
+          <!-- Seabed & sand dunes -->
+          <path d="M0 76 Q 30 72, 60 78 T 100 76 L 100 100 L 0 100 Z" fill="#05242b"/>
+          <circle cx="26" cy="28" r="2" fill="#bae6fd" opacity="0.6"/>
+          <circle cx="32" cy="20" r="1.5" fill="#bae6fd" opacity="0.5"/>
+          <circle cx="82" cy="30" r="2.5" fill="#bae6fd" opacity="0.5"/>
+          <!-- Translucent Lancelet Fin Ribbon -->
+          <path d="M12 48 Q 50 34, 88 48 Q 50 60, 12 48 Z" fill="#67e8f9" fill-opacity="0.3" stroke="#a5f3fc" stroke-width="1.5"/>
+          <!-- Sleek Body -->
+          <path d="M15 48 C 30 40, 65 40, 85 48 C 65 56, 30 56, 15 48 Z" fill="#0284c7" fill-opacity="0.45" stroke="#38bdf8" stroke-width="2"/>
+          <!-- Glowing red-orange notochord -->
+          <path d="M18 47 Q 50 43, 82 48" fill="none" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+          <path d="M18 47 Q 50 43, 82 48" fill="none" stroke="#fde047" stroke-width="1.2" stroke-linecap="round"/>
+          <!-- Gut organ pod -->
+          <ellipse cx="68" cy="49" rx="8" ry="3.5" fill="#be123c" fill-opacity="0.8"/>
+          <!-- V-shaped segmented muscle blocks (myomeres) -->
+          <path d="M26 44 L 30 48 L 26 52 M 34 44 L 38 48 L 34 52 M 42 44 L 46 48 L 42 52 M 50 44 L 54 48 L 50 52" fill="none" stroke="#cffafe" stroke-width="1.5" opacity="0.8"/>
+        </svg>`
+      },
+      {
+        level: 5,
+        value: 32,
+        name: "Древняя рыба",
+        era: "410 млн лет назад",
+        desc: "Панцирная челюстноротая рыба (плакодерма) с мощным черепом, плавниками и острыми зубами.",
+        svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="fish-bg" x1="0" y1="0" x2="0" y2="100%">
+              <stop offset="0%" stop-color="#14948a"/>
+              <stop offset="50%" stop-color="#0d635c"/>
+              <stop offset="100%" stop-color="#052c28"/>
+            </linearGradient>
+          </defs>
+          <rect width="100" height="100" fill="url(#fish-bg)"/>
+          <!-- Sun rays through water -->
+          <polygon points="12,0 32,0 48,55 24,55" fill="#5eead4" opacity="0.16"/>
+          <polygon points="52,0 72,0 90,55 68,55" fill="#5eead4" opacity="0.16"/>
+          <!-- Benthic algae & rocks -->
+          <path d="M8 100 Q 14 78, 6 66 Q 14 78, 18 100" stroke="#047857" stroke-width="3" fill="none"/>
+          <path d="M88 100 Q 80 80, 86 64 Q 84 80, 94 100" stroke="#047857" stroke-width="3" fill="none"/>
+          <ellipse cx="50" cy="94" rx="38" ry="9" fill="#04221e"/>
+          <!-- Dorsal fin -->
+          <polygon points="40,34 54,22 56,36" fill="#14b8a6" stroke="#0f766e" stroke-width="2"/>
+          <!-- Tail fin -->
+          <polygon points="20,48 4,32 10,48 4,64" fill="#14b8a6" stroke="#0f766e" stroke-width="2.5"/>
+          <!-- Fish Body -->
+          <path d="M18 48 C 28 35, 60 34, 78 41 C 88 45, 88 55, 82 59 C 64 65, 28 61, 18 48 Z" fill="#2dd4bf" stroke="#0f766e" stroke-width="2.5"/>
+          <!-- Head Shield Armor Plates -->
+          <path d="M60 36 C 72 36, 82 42, 82 50 C 78 58, 64 60, 58 56 Z" fill="#5eead4" stroke="#0f766e" stroke-width="2"/>
+          <!-- Jaws & sharp teeth -->
+          <polygon points="76,51 86,52 79,57 74,54" fill="#0f766e"/>
+          <path d="M78 51 L 80 53 L 82 51 L 84 53" stroke="#ffffff" stroke-width="1.5" fill="none"/>
+          <!-- Eye -->
+          <circle cx="71" cy="44" r="3.5" fill="#134e4a"/>
+          <circle cx="72" cy="43" r="1.5" fill="#f8fafc"/>
+          <!-- Pectoral Fin -->
+          <polygon points="54,58 64,68 50,64" fill="#14b8a6" stroke="#0f766e" stroke-width="2"/>
+        </svg>`
+      },
+      {
+        level: 6,
+        value: 64,
+        name: "Переходная форма (Тиктаалик)",
+        era: "375 млн лет назад",
+        desc: "«Рыбоног» с уплощенным черепом, глазами наверху головы и крепкими лапами-плавниками.",
+        svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="tikt-bg" x1="0" y1="0" x2="0" y2="100%">
+              <stop offset="0%" stop-color="#365c36"/>
+              <stop offset="45%" stop-color="#2a472a"/>
+              <stop offset="100%" stop-color="#142414"/>
+            </linearGradient>
+          </defs>
+          <rect width="100" height="100" fill="url(#tikt-bg)"/>
+          <!-- Mangrove roots & swamp greenery -->
+          <path d="M82 0 Q 76 28, 90 40 M 88 0 Q 80 25, 96 35" stroke="#162916" stroke-width="4" fill="none"/>
+          <!-- Muddy riverbank bottom -->
+          <path d="M0 66 Q 40 58, 100 68 L 100 100 L 0 100 Z" fill="#1e331e"/>
+          <!-- Fin Tail -->
+          <path d="M12 44 Q 22 45, 30 50 Q 20 56, 14 55 Z" fill="#4d7c0f" stroke="#365314" stroke-width="2"/>
+          <!-- Main Body -->
+          <path d="M26 50 C 35 43, 60 43, 76 46 C 86 48, 90 56, 82 60 C 65 65, 36 62, 26 50 Z" fill="#65a30d" stroke="#365314" stroke-width="2.5"/>
+          <!-- Scales stripes -->
+          <path d="M38 46 L 36 56 M 46 45 L 44 58 M 56 46 L 54 58 M 64 47 L 62 58" stroke="#4d7c0f" stroke-width="2"/>
+          <!-- Flattened crocodile-like skull -->
+          <path d="M70 46 C 82 47, 88 51, 86 56 C 80 59, 74 58, 68 56 Z" fill="#84cc16"/>
+          <!-- Elevated eye -->
+          <circle cx="73" cy="45" r="3.2" fill="#365314"/>
+          <circle cx="74" cy="44" r="1.2" fill="#fef08a"/>
+          <!-- Front weight-bearing wrist fin -->
+          <path d="M58 58 C 64 66, 68 74, 58 75 C 54 74, 52 64, 56 58 Z" fill="#4d7c0f" stroke="#365314" stroke-width="2.2"/>
+          <!-- Hind walking fin -->
+          <path d="M33 56 C 36 64, 40 68, 34 68 C 30 67, 30 60, 32 56 Z" fill="#4d7c0f" stroke="#365314" stroke-width="2"/>
+        </svg>`
+      },
+      {
+        level: 7,
+        value: 128,
+        name: "Тетрапод (Амфибия)",
+        era: "340 млн лет назад",
+        desc: "Первобытное четвероногое (ихтиостега) с пальцами на лапах, хвостом и бурой пятнистой кожей.",
+        svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="tetra-bg" x1="0" y1="0" x2="0" y2="100%">
+              <stop offset="0%" stop-color="#69563c"/>
+              <stop offset="50%" stop-color="#54432c"/>
+              <stop offset="100%" stop-color="#2a2013"/>
+            </linearGradient>
+          </defs>
+          <rect width="100" height="100" fill="url(#tetra-bg)"/>
+          <!-- Ferns & horsetails -->
+          <path d="M12 60 L 16 35 M 16 60 L 22 40 M 80 62 L 76 38 M 86 62 L 92 42" stroke="#3f4f22" stroke-width="2" stroke-linecap="round"/>
+          <ellipse cx="50" cy="75" rx="42" ry="14" fill="#322515"/>
+          <!-- Tail -->
+          <path d="M38 52 C 22 52, 14 36, 18 36 C 24 38, 28 44, 42 50 Z" fill="#92400e" stroke="#5c2406" stroke-width="2"/>
+          <!-- Torso -->
+          <ellipse cx="54" cy="53" rx="22" ry="12" fill="#b45309" stroke="#78350f" stroke-width="2.5"/>
+          <!-- Spots -->
+          <circle cx="48" cy="50" r="2.5" fill="#78350f"/><circle cx="58" cy="48" r="3" fill="#78350f"/><circle cx="54" cy="56" r="2" fill="#78350f"/>
+          <!-- Head -->
+          <ellipse cx="76" cy="50" rx="14" ry="9" fill="#b45309" stroke="#78350f" stroke-width="2.5"/>
+          <path d="M74 54 Q 82 56, 88 51" stroke="#451a03" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <circle cx="75" cy="46" r="3" fill="#451a03"/><circle cx="76" cy="45" r="1.2" fill="#fef08a"/>
+          <!-- Legs with fingers -->
+          <path d="M66 58 L 68 72 L 74 74 M 68 72 L 71 76 M 68 72 L 66 76" stroke="#78350f" stroke-width="3" stroke-linecap="round" fill="none"/>
+          <path d="M42 58 L 38 68 L 32 72 M 38 68 L 36 74" stroke="#78350f" stroke-width="3" stroke-linecap="round" fill="none"/>
+        </svg>`
+      },
+      {
+        level: 8,
+        value: 256,
+        name: "Терапсид (Зверозуб)",
+        era: "260 млн лет назад",
+        desc: "Звероящер пермского периода. Прямая стойка, крепкое мускулистое тело и сабельные клыки.",
+        svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="therap-bg" x1="0" y1="0" x2="0" y2="100%">
+              <stop offset="0%" stop-color="#7a5539"/>
+              <stop offset="50%" stop-color="#593b24"/>
+              <stop offset="100%" stop-color="#2a180b"/>
+            </linearGradient>
+          </defs>
+          <rect width="100" height="100" fill="url(#therap-bg)"/>
+          <!-- Distant savanna tree -->
+          <path d="M22 42 L 24 24 M 18 26 Q 25 18, 34 25" stroke="#382010" stroke-width="2" fill="none"/>
+          <path d="M0 68 Q 50 64, 100 70 L 100 100 L 0 100 Z" fill="#301e12"/>
+          <circle cx="20" cy="85" r="4" fill="#4a2e1b"/><circle cx="85" cy="88" r="6" fill="#4a2e1b"/>
+          <!-- Tail -->
+          <path d="M22 55 Q 12 58, 8 68 Q 16 62, 24 60 Z" fill="#9a3412" stroke="#6c220a" stroke-width="2"/>
+          <!-- Body -->
+          <path d="M24 55 C 28 42, 60 40, 72 48 C 76 56, 70 66, 30 65 Z" fill="#b45309" stroke="#6c220a" stroke-width="2.5"/>
+          <!-- Skull -->
+          <path d="M70 46 C 82 45, 94 48, 92 56 C 85 64, 75 60, 68 56 Z" fill="#b45309" stroke="#6c220a" stroke-width="2.5"/>
+          <circle cx="78" cy="49" r="3" fill="#431407"/><circle cx="79" cy="48" r="1.2" fill="#fed7aa"/>
+          <!-- Prominent Saber Tooth -->
+          <polygon points="86,55 89,64 84,57" fill="#ffffff" stroke="#7c2d12" stroke-width="1"/>
+          <!-- Limbs -->
+          <path d="M68 58 L 72 74 L 79 77" stroke="#78350f" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <path d="M78 60 L 82 72 L 88 74" stroke="#9a3412" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <path d="M30 58 L 28 72 L 23 76" stroke="#78350f" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <path d="M40 58 L 42 70 L 46 73" stroke="#9a3412" stroke-width="4" stroke-linecap="round" fill="none"/>
+        </svg>`
+      },
+      {
+        level: 9,
+        value: 512,
+        name: "Раннее млекопитающее",
+        era: "190 млн лет назад",
+        desc: "Ночной пушистый зверек (морганукодон) на бревне под кронами папоротников.",
+        svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="mammal-bg" x1="0" y1="0" x2="0" y2="100%">
+              <stop offset="0%" stop-color="#544439"/>
+              <stop offset="50%" stop-color="#3c2f25"/>
+              <stop offset="100%" stop-color="#1c140d"/>
+            </linearGradient>
+          </defs>
+          <rect width="100" height="100" fill="url(#mammal-bg)"/>
+          <!-- Night Stars and Foliage -->
+          <circle cx="18" cy="22" r="1.5" fill="#fde68a" opacity="0.6"/>
+          <circle cx="86" cy="18" r="1.2" fill="#fde68a" opacity="0.6"/>
+          <path d="M10 50 Q 20 30, 8 15 M 12 40 Q 25 32, 22 20" stroke="#364024" stroke-width="2.5" fill="none"/>
+          <!-- Wooden Log -->
+          <path d="M0 82 L 100 74 L 100 96 L 0 98 Z" fill="#2d2118" stroke="#1c130d" stroke-width="2"/>
+          <!-- Tail -->
+          <path d="M30 65 Q 16 66, 12 76 Q 8 88, 20 90 Q 26 90, 24 82" stroke="#d97706" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <!-- Furry Body -->
+          <ellipse cx="50" cy="62" rx="20" ry="14" fill="#78716c" stroke="#44403c" stroke-width="2.5"/>
+          <ellipse cx="52" cy="64" rx="14" ry="8" fill="#a8a29e" opacity="0.4"/>
+          <!-- Head & snout -->
+          <path d="M62 55 C 72 54, 82 60, 86 64 C 80 68, 70 69, 62 67 Z" fill="#78716c" stroke="#44403c" stroke-width="2.5"/>
+          <circle cx="70" cy="59" r="3.2" fill="#0f172a"/><circle cx="71" cy="58" r="1.3" fill="#ffffff"/>
+          <!-- Whiskers & Ear -->
+          <path d="M84 64 L 94 61 M 84 65 L 95 65 M 84 66 L 93 69" stroke="#e2e8f0" stroke-width="1.2"/>
+          <ellipse cx="62" cy="52" rx="4.5" ry="6" fill="#fca5a5" stroke="#44403c" stroke-width="1.8"/>
+          <!-- Tiny paws -->
+          <circle cx="42" cy="74" r="3.5" fill="#fca5a5"/><circle cx="66" cy="73" r="3.5" fill="#fca5a5"/>
+        </svg>`
+      },
+      {
+        level: 10,
+        value: 1024,
+        name: "Древний примат",
+        era: "25 млн лет назад",
+        desc: "Древесный примат на ветке джунглей. Бинокулярное зрение и цепкие пальцы.",
+        svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="prim-bg" x1="0" y1="0" x2="0" y2="100%">
+              <stop offset="0%" stop-color="#bf600d"/>
+              <stop offset="60%" stop-color="#9a4306"/>
+              <stop offset="100%" stop-color="#451a03"/>
+            </linearGradient>
+          </defs>
+          <rect width="100" height="100" fill="url(#prim-bg)"/>
+          <!-- Jungle Canopy leaves -->
+          <path d="M0 0 L 35 25 L 0 35 Z" fill="#3f6212" opacity="0.8"/>
+          <path d="M100 0 L 65 28 L 100 45 Z" fill="#4d7c0f" opacity="0.8"/>
+          <!-- Tree branch -->
+          <path d="M0 88 C 40 76, 70 70, 100 62" stroke="#3e2717" stroke-width="10" fill="none" stroke-linecap="round"/>
+          <!-- Curled Tail -->
+          <path d="M38 58 C 24 50, 18 30, 24 20 C 30 10, 38 18, 34 32 C 30 46, 40 56, 44 60" stroke="#b45309" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+          <!-- Monkey body -->
+          <ellipse cx="52" cy="56" rx="14" ry="18" fill="#d97706" stroke="#78350f" stroke-width="2.5"/>
+          <circle cx="62" cy="38" r="13" fill="#d97706" stroke="#78350f" stroke-width="2.5"/>
+          <!-- Face mask -->
+          <ellipse cx="64" cy="40" rx="9" ry="8" fill="#fde68a"/>
+          <circle cx="62" cy="38" r="2.5" fill="#451a03"/><circle cx="68" cy="38" r="2.5" fill="#451a03"/>
+          <circle cx="63" cy="37" r="0.8" fill="#ffffff"/><circle cx="69" cy="37" r="0.8" fill="#ffffff"/>
+          <ellipse cx="65" cy="44" rx="4" ry="2.5" fill="#fcd34d"/>
+          <!-- Arms gripping the branch -->
+          <path d="M58 54 Q 72 60, 78 66" stroke="#b45309" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+          <circle cx="78" cy="67" r="3.5" fill="#fde68a"/><circle cx="50" cy="74" r="4" fill="#fde68a"/>
+        </svg>`
+      },
+      {
+        level: 11,
+        value: 2048,
+        name: "Ранний гоминид",
+        era: "3.5 млн лет назад",
+        desc: "Австралопитек на фоне саванны: устойчивый бипедализм (прямохождение) и свободные руки.",
+        svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="hom-bg" x1="0" y1="0" x2="0" y2="100%">
+              <stop offset="0%" stop-color="#f97316"/>
+              <stop offset="50%" stop-color="#c2410c"/>
+              <stop offset="100%" stop-color="#431407"/>
+            </linearGradient>
+          </defs>
+          <rect width="100" height="100" fill="url(#hom-bg)"/>
+          <!-- Savannah acacias -->
+          <path d="M12 55 L 14 38 M 8 40 Q 15 32, 26 38" stroke="#7c2d12" stroke-width="2.5" fill="none"/>
+          <path d="M84 58 L 86 44 M 80 46 Q 88 40, 96 45" stroke="#7c2d12" stroke-width="2.5" fill="none"/>
+          <path d="M0 76 Q 50 72, 100 78 L 100 100 L 0 100 Z" fill="#78350f"/>
+          <!-- Head -->
+          <circle cx="56" cy="26" r="10" fill="#451a03" stroke="#290e04" stroke-width="2"/>
+          <ellipse cx="60" cy="28" rx="6" ry="5" fill="#78350f"/>
+          <circle cx="61" cy="26" r="2" fill="#0f172a"/><circle cx="62" cy="25" r="0.8" fill="#fef08a"/>
+          <!-- Torso -->
+          <path d="M50 36 C 54 34, 62 34, 62 54 C 60 62, 48 62, 48 48 Z" fill="#58240c" stroke="#290e04" stroke-width="2"/>
+          <!-- Arms -->
+          <path d="M52 40 L 44 56 L 40 68" stroke="#58240c" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <path d="M60 40 L 68 56 L 70 66" stroke="#58240c" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <!-- Legs in walking stance -->
+          <path d="M48 60 L 40 76 L 36 88 L 42 90" stroke="#451a03" stroke-width="5" stroke-linecap="round" fill="none"/>
+          <path d="M56 60 L 64 74 L 62 88 L 68 90" stroke="#58240c" stroke-width="5" stroke-linecap="round" fill="none"/>
+        </svg>`
+      },
+      {
+        level: 12,
+        value: 4096,
+        name: "Человек разумный (Homo sapiens)",
+        era: "Наши дни",
+        desc: "Кроманьонец с кремниевым копьем у первобытного костра — триумф разума и культуры.",
+        svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="sapiens-bg" x1="0" y1="0" x2="0" y2="100%">
+              <stop offset="0%" stop-color="#fbbf24"/>
+              <stop offset="45%" stop-color="#d97706"/>
+              <stop offset="100%" stop-color="#451a03"/>
+            </linearGradient>
+            <radialGradient id="fire-glow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#fef08a"/>
+              <stop offset="50%" stop-color="#f97316"/>
+              <stop offset="100%" stop-color="#7c2d12" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <rect width="100" height="100" fill="url(#sapiens-bg)"/>
+          <!-- Mountains horizon -->
+          <polygon points="0,68 30,52 65,70 100,56 100,100 0,100" fill="#713f12" opacity="0.6"/>
+          <!-- Campfire -->
+          <circle cx="28" cy="78" r="14" fill="url(#fire-glow)"/>
+          <polygon points="24,78 28,68 32,78 28,74" fill="#fde047"/>
+          <polygon points="26,79 28,71 30,79" fill="#ffffff"/>
+          <line x1="20" y1="82" x2="36" y2="80" stroke="#291307" stroke-width="3" stroke-linecap="round"/>
+          <!-- Hunting Spear with flint blade -->
+          <line x1="78" y1="18" x2="68" y2="92" stroke="#78350f" stroke-width="3" stroke-linecap="round"/>
+          <polygon points="78,16 82,24 74,25" fill="#e2e8f0" stroke="#475569" stroke-width="1.2"/>
+          <!-- Human figure -->
+          <circle cx="60" cy="28" r="9" fill="#78350f" stroke="#451a03" stroke-width="2"/>
+          <circle cx="58" cy="25" r="7" fill="#291307"/>
+          <circle cx="63" cy="28" r="1.8" fill="#0f172a"/>
+          <path d="M58 32 Q 64 36, 66 32" stroke="#291307" stroke-width="2" fill="#291307"/>
+          <!-- Hide vest -->
+          <path d="M52 38 C 55 36, 68 36, 68 56 C 65 62, 52 62, 52 50 Z" fill="#b45309" stroke="#451a03" stroke-width="2"/>
+          <path d="M52 40 L 68 54 L 62 60 L 50 44 Z" fill="#78350f" opacity="0.9"/>
+          <!-- Arms -->
+          <path d="M64 42 L 72 50 L 73 52" stroke="#b45309" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+          <circle cx="73" cy="51" r="3.2" fill="#d97706"/>
+          <path d="M54 42 L 48 54 L 50 62" stroke="#b45309" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+          <!-- Legs -->
+          <path d="M54 60 L 52 74 L 50 88 L 56 90" stroke="#9a3412" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+          <path d="M62 60 L 64 74 L 66 88 L 72 90" stroke="#b45309" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+        </svg>`
+      }
+    ];
+
+    const GRID_SIZE = 4;
+    let grid = [];
+    let score = 0;
+    let bestScore = parseInt(localStorage.getItem('evo2048_pixel_best') || '0', 10);
+    let unlockedLevels = JSON.parse(localStorage.getItem('evo2048_pixel_unlocked') || '[1]');
+    let hasWon = false;
+    let keepPlayingAfterWin = false;
+    let nextTileId = 1;
+    let isAnimating = false;
+
+    // Track active DOM elements for fluid tile sliding
+    const activeTileElements = new Map();
+
+    const DEFAULT_SPRITE_URL = 'https://taplink.st/p/6/a/c/c/71102893.png?0';
+    let spriteSheetCustomUrl = localStorage.getItem('evo2048_custom_sprite_url') || DEFAULT_SPRITE_URL;
+    document.documentElement.style.setProperty('--spritesheet-url', `url("${spriteSheetCustomUrl}")`);
+
+    // Elements
+    const boardElement = document.getElementById('board-touch-surface');
+    const tileContainer = document.getElementById('tile-container');
+    const scoreValEl = document.getElementById('current-score');
+    const bestScoreValEl = document.getElementById('best-score');
+    const modalStatus = document.getElementById('modal-status');
+    const statusTitle = document.getElementById('status-title');
+    const statusDesc = document.getElementById('status-desc');
+    const statusIcon = document.getElementById('status-icon');
+    const btnKeepPlaying = document.getElementById('btn-keep-playing');
+    const btnModalRestart = document.getElementById('btn-modal-restart');
+    const modalEncyclopedia = document.getElementById('modal-encyclopedia');
+    const treeGridList = document.getElementById('tree-grid-list');
+
+    bestScoreValEl.textContent = bestScore;
+
+    function initEmptyGrid() {
+      grid = [];
+      for (let r = 0; r < GRID_SIZE; r++) {
+        grid[r] = [];
+        for (let c = 0; c < GRID_SIZE; c++) {
+          grid[r][c] = null;
+        }
+      }
+    }
+
+    function getEmptyCells() {
+      const empty = [];
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          if (!grid[r][c]) {
+            empty.push({ r, c });
+          }
+        }
+      }
+      return empty;
+    }
+
+    function spawnRandomTile() {
+      const empty = getEmptyCells();
+      if (empty.length === 0) return null;
+
+      const { r, c } = empty[Math.floor(Math.random() * empty.length)];
+      // 90% chance Level 1 (LUCA), 10% chance Level 2 (Eukaryote)
+      const level = Math.random() < 0.9 ? 1 : 2;
+      const tile = {
+        id: nextTileId++,
+        level: level,
+        row: r,
+        col: c,
+        isNew: true,
+        isMerged: false
+      };
+      grid[r][c] = tile;
+      markUnlocked(level);
+      return tile;
+    }
+
+    function markUnlocked(lvl) {
+      if (!unlockedLevels.includes(lvl)) {
+        unlockedLevels.push(lvl);
+        unlockedLevels.sort((a, b) => a - b);
+        localStorage.setItem('evo2048_pixel_unlocked', JSON.stringify(unlockedLevels));
+      }
+    }
+
+    function calculateTileSize() {
+      const containerWidth = tileContainer.clientWidth || 360;
+      const gap = 10;
+      const tileSize = (containerWidth - (gap * (GRID_SIZE - 1))) / GRID_SIZE;
+      return { tileSize, gap };
+    }
+
+    function renderBoard(movingTiles = []) {
+      const { tileSize, gap } = calculateTileSize();
+      const visibleIds = new Set();
+
+      // Collect all tiles: regular grid tiles + actively sliding source tiles
+      const tilesToDisplay = [];
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          if (grid[r][c]) {
+            tilesToDisplay.push(grid[r][c]);
+          }
+        }
+      }
+      for (const t of movingTiles) {
+        tilesToDisplay.push(t);
+      }
+
+      for (const tileData of tilesToDisplay) {
+        visibleIds.add(tileData.id);
+        const stageInfo = EVOLUTION_STAGES[tileData.level - 1] || EVOLUTION_STAGES[EVOLUTION_STAGES.length - 1];
+        const targetX = tileData.col * (tileSize + gap);
+        const targetY = tileData.row * (tileSize + gap);
+
+        let tileEl = activeTileElements.get(tileData.id);
+
+        if (!tileEl) {
+          tileEl = document.createElement('div');
+          tileEl.className = 'tile';
+          tileEl.style.width = `${tileSize}px`;
+          tileEl.style.height = `${tileSize}px`;
+
+          // Position at starting coordinate prior to sliding
+          const startX = (tileData.fromCol !== undefined ? tileData.fromCol : tileData.col) * (tileSize + gap);
+          const startY = (tileData.fromRow !== undefined ? tileData.fromRow : tileData.row) * (tileSize + gap);
+
+          tileEl.style.setProperty('--tx', `${startX}px`);
+          tileEl.style.setProperty('--ty', `${startY}px`);
+          tileEl.style.transform = `translate(${startX}px, ${startY}px)`;
+
+          tileEl.innerHTML = `
+            <div class="tile-sprite sprite-pos-${tileData.level}"></div>
+            <div class="tile-tooltip">${stageInfo.name}</div>
+          `;
+
+          tileContainer.appendChild(tileEl);
+          activeTileElements.set(tileData.id, tileEl);
+
+          if (tileData.isNew) {
+            tileEl.classList.add('tile-new');
+          }
+        } else {
+          tileEl.style.width = `${tileSize}px`;
+          tileEl.style.height = `${tileSize}px`;
+        }
+
+        if (tileData.isMerged) {
+          tileEl.classList.remove('tile-new');
+          tileEl.classList.remove('tile-merged');
+          // Trigger popMerge animation cleanly on target coordinates
+          void tileEl.offsetWidth;
+          tileEl.classList.add('tile-merged');
+        }
+
+        if (tileData.isSlidingToDeath) {
+          tileEl.classList.add('tile-moving-under');
+        }
+
+        // Apply movement transform smoothly
+        tileEl.style.setProperty('--tx', `${targetX}px`);
+        tileEl.style.setProperty('--ty', `${targetY}px`);
+        tileEl.style.transform = `translate(${targetX}px, ${targetY}px)`;
+
+        tileData.isNew = false;
+        tileData.isMerged = false;
+      }
+
+      // Clean up orphaned DOM tiles that finished merging or disappearing
+      for (const [id, el] of activeTileElements.entries()) {
+        if (!visibleIds.has(id)) {
+          if (el.parentNode) el.parentNode.removeChild(el);
+          activeTileElements.delete(id);
+        }
+      }
+
+      scoreValEl.textContent = score;
+      if (score > bestScore) {
+        bestScore = score;
+        bestScoreValEl.textContent = bestScore;
+        localStorage.setItem('evo2048_pixel_best', bestScore);
+      }
+    }
+
+    function move(direction) {
+      if (isAnimating) return;
+
+      // 0: Up, 1: Right, 2: Down, 3: Left
+      let moved = false;
+      const mergedThisTurn = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(false));
+      const slidingToDeathTiles = [];
+      const pendingMerges = [];
+
+      const traverseRows = direction === 2 ? [3, 2, 1, 0] : [0, 1, 2, 3];
+      const traverseCols = direction === 1 ? [3, 2, 1, 0] : [0, 1, 2, 3];
+
+      for (const r of traverseRows) {
+        for (const c of traverseCols) {
+          const tile = grid[r][c];
+          if (!tile) continue;
+
+          let targetRow = r;
+          let targetCol = c;
+
+          while (true) {
+            let nextR = targetRow;
+            let nextC = targetCol;
+
+            if (direction === 0) nextR--;
+            if (direction === 1) nextC++;
+            if (direction === 2) nextR++;
+            if (direction === 3) nextC--;
+
+            if (nextR < 0 || nextR >= GRID_SIZE || nextC < 0 || nextC >= GRID_SIZE) {
+              break;
+            }
+
+            const neighbor = grid[nextR][nextC];
+
+            if (!neighbor) {
+              targetRow = nextR;
+              targetCol = nextC;
+            } else if (
+              neighbor.level === tile.level &&
+              !mergedThisTurn[nextR][nextC] &&
+              tile.level < EVOLUTION_STAGES.length
+            ) {
+              targetRow = nextR;
+              targetCol = nextC;
+              break;
+            } else {
+              break;
+            }
+          }
+
+          if (targetRow !== r || targetCol !== c) {
+            const existing = grid[targetRow][targetCol];
+
+            if (existing && existing.level === tile.level) {
+              const nextLevel = tile.level + 1;
+
+              // The moving tile slides straight into the existing tile's cell
+              slidingToDeathTiles.push({
+                ...tile,
+                fromRow: r,
+                fromCol: c,
+                row: targetRow,
+                col: targetCol,
+                isSlidingToDeath: true
+              });
+
+              // Keep track of the merge to execute AFTER slide finishes
+              pendingMerges.push({
+                row: targetRow,
+                col: targetCol,
+                targetTileId: existing.id,
+                nextLevel: nextLevel
+              });
+
+              grid[r][c] = null;
+              mergedThisTurn[targetRow][targetCol] = true;
+            } else {
+              grid[targetRow][targetCol] = {
+                ...tile,
+                fromRow: r,
+                fromCol: c,
+                row: targetRow,
+                col: targetCol
+              };
+              grid[r][c] = null;
+            }
+
+            moved = true;
+          }
+        }
+      }
+
+      if (moved) {
+        isAnimating = true;
+
+        // Step 1: Render sliding motion. No new merged tiles are created yet!
+        renderBoard(slidingToDeathTiles);
+
+        // Step 2: Once the slide completes, merge and pop the new tile smoothly
+        setTimeout(() => {
+          let hasLevel12Win = false;
+
+          for (const merge of pendingMerges) {
+            const mergedStage = EVOLUTION_STAGES[merge.nextLevel - 1];
+
+            // Replace existing tile with the evolved tile
+            grid[merge.row][merge.col] = {
+              id: nextTileId++,
+              level: merge.nextLevel,
+              row: merge.row,
+              col: merge.col,
+              isNew: false,
+              isMerged: true
+            };
+
+            score += mergedStage.value;
+            markUnlocked(merge.nextLevel);
+
+            if (merge.nextLevel === 12 && !hasWon && !keepPlayingAfterWin) {
+              hasLevel12Win = true;
+            }
+          }
+
+          spawnRandomTile();
+          renderBoard([]);
+          isAnimating = false;
+
+          if (hasLevel12Win) {
+            hasWon = true;
+            setTimeout(showVictoryModal, 250);
+          } else if (checkGameOver()) {
+            setTimeout(showGameOverModal, 300);
+          }
+        }, 125);
+      }
+    }
+
+    function checkGameOver() {
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          if (!grid[r][c]) return false;
+        }
+      }
+
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          const current = grid[r][c];
+          if (!current) continue;
+
+          if (c + 1 < GRID_SIZE && grid[r][c + 1] && grid[r][c + 1].level === current.level) {
+            return false;
+          }
+          if (r + 1 < GRID_SIZE && grid[r + 1][c] && grid[r + 1][c].level === current.level) {
+            return false;
+          }
+        }
+      }
+
+      return true;
+    }
+
+    function showVictoryModal() {
+      statusTitle.textContent = "Венец Эволюции!";
+      statusTitle.style.color = "#facc15";
+      statusDesc.textContent = "Поздравляем! Вы прошли 4 миллиарда лет истории и открыли Человека Разумного (Homo Sapiens)!";
+      statusIcon.innerHTML = `<div class="tile-sprite sprite-pos-12" style="width:100%;height:100%;"></div>`;
+      btnKeepPlaying.style.display = 'inline-flex';
+      modalStatus.classList.add('active');
+    }
+
+    function showGameOverModal() {
+      statusTitle.textContent = "Великое вымирание";
+      statusTitle.style.color = "#ef4444";
+      statusDesc.textContent = "Свободных экологических ниш не осталось, мутации зашли в тупик. Попробуйте еще раз!";
+      
+      let maxLvl = 1;
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          if (grid[r][c] && grid[r][c].level > maxLvl) {
+            maxLvl = grid[r][c].level;
+          }
+        }
+      }
+      statusIcon.innerHTML = `<div class="tile-sprite sprite-pos-${maxLvl}" style="width:100%;height:100%;"></div>`;
+      btnKeepPlaying.style.display = 'none';
+      modalStatus.classList.add('active');
+    }
+
+    function openEncyclopedia() {
+      treeGridList.innerHTML = '';
+      EVOLUTION_STAGES.forEach(stage => {
+        const isUnlocked = unlockedLevels.includes(stage.level);
+        const card = document.createElement('div');
+        card.className = `tree-item ${isUnlocked ? 'unlocked' : 'locked'}`;
+
+        card.innerHTML = `
+          <div class="tree-thumb">
+            ${isUnlocked ? `<div class="tile-sprite sprite-pos-${stage.level}" style="width:100%;height:100%;"></div>` : '🔒'}
+          </div>
+          <div class="tree-info">
+            <div class="t-num">Шаг ${stage.level} [${stage.value}]</div>
+            <div class="t-name">${isUnlocked ? stage.name : 'Не открыто'}</div>
+            <div class="t-era">${isUnlocked ? stage.era : 'Эра скрыта'}</div>
+            ${isUnlocked ? `<div class="t-desc">${stage.desc}</div>` : ''}
+          </div>
+        `;
+        treeGridList.appendChild(card);
+      });
+
+      modalEncyclopedia.classList.add('active');
+    }
+
+    function startNewGame() {
+      modalStatus.classList.remove('active');
+      modalEncyclopedia.classList.remove('active');
+      tileContainer.innerHTML = '';
+      activeTileElements.clear();
+      initEmptyGrid();
+      score = 0;
+      hasWon = false;
+      keepPlayingAfterWin = false;
+      isAnimating = false;
+      spawnRandomTile();
+      spawnRandomTile();
+      renderBoard();
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (modalStatus.classList.contains('active') || modalEncyclopedia.classList.contains('active')) {
+        return;
+      }
+
+      switch (e.key) {
+        case 'ArrowUp':
+        case 'w':
+        case 'W':
+        case 'ц':
+        case 'Ц':
+          e.preventDefault();
+          move(0);
+          break;
+        case 'ArrowRight':
+        case 'd':
+        case 'D':
+        case 'в':
+        case 'В':
+          e.preventDefault();
+          move(1);
+          break;
+        case 'ArrowDown':
+        case 's':
+        case 'S':
+        case 'ы':
+        case 'Ы':
+          e.preventDefault();
+          move(2);
+          break;
+        case 'ArrowLeft':
+        case 'a':
+        case 'A':
+        case 'ф':
+        case 'Ф':
+          e.preventDefault();
+          move(3);
+          break;
+      }
+    });
+
+    // Touch Swipes without screen scroll interference
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartTime = 0;
+
+    boardElement.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) return;
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      touchStartTime = Date.now();
+    }, { passive: true });
+
+    boardElement.addEventListener('touchend', (e) => {
+      if (e.changedTouches.length !== 1) return;
+      const touchEndX = e.changedTouches[0].clientX;
+      const touchEndY = e.changedTouches[0].clientY;
+      const elapsed = Date.now() - touchStartTime;
+
+      const dx = touchEndX - touchStartX;
+      const dy = touchEndY - touchStartY;
+      const absDx = Math.abs(dx);
+      const absDy = Math.abs(dy);
+
+      if (Math.max(absDx, absDy) > 25 && elapsed < 650) {
+        if (absDx > absDy) {
+          if (dx > 0) move(1);
+          else move(3);
+        } else {
+          if (dy > 0) move(2);
+          else move(0);
+        }
+      }
+    }, { passive: true });
+
+    document.getElementById('btn-restart').addEventListener('click', startNewGame);
+    document.getElementById('btn-modal-restart').addEventListener('click', startNewGame);
+
+    btnKeepPlaying.addEventListener('click', () => {
+      keepPlayingAfterWin = true;
+      modalStatus.classList.remove('active');
+    });
+
+    document.getElementById('btn-encyclopedia').addEventListener('click', openEncyclopedia);
+    document.getElementById('btn-close-encyclopedia').addEventListener('click', () => {
+      modalEncyclopedia.classList.remove('active');
+    });
+
+    // Close encyclopedia or game status modal on outside click (backdrop)
+    modalEncyclopedia.addEventListener('click', (e) => {
+      if (e.target === modalEncyclopedia) {
+        modalEncyclopedia.classList.remove('active');
+      }
+    });
+
+    modalStatus.addEventListener('click', (e) => {
+      if (e.target === modalStatus && keepPlayingAfterWin) {
+        modalStatus.classList.remove('active');
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      renderBoard();
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      startNewGame();
+    });
+  </script>
+</body>
+</html>
