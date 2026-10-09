@@ -18,12 +18,16 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    /* Блокировка нативного оверскролла и жестов сворачивания шторки Telegram */
+    /* Полная жесткая фиксация вьюпорта против сворачивания шторки Telegram */
     html, body {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
       overscroll-behavior: none;
       overscroll-behavior-y: none;
       -webkit-overflow-scrolling: touch;
-      height: 100%;
+      touch-action: none;
     }
 
     body {
@@ -33,15 +37,14 @@
         repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.015) 0px, rgba(255, 255, 255, 0.015) 2px, transparent 2px, transparent 4px);
       color: #e2e8f0;
       font-family: 'Press Start 2P', monospace, system-ui;
-      min-height: 100vh;
-      min-height: 100dvh;
+      height: 100vh;
+      height: 100dvh;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
-      padding: 16px 12px 36px;
-      overflow-x: hidden;
-      touch-action: manipulation;
+      padding: 14px 12px 24px;
+      touch-action: none;
     }
 
     .game-wrapper {
@@ -49,8 +52,9 @@
       max-width: 480px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
       align-items: center;
+      touch-action: none;
     }
 
     header {
@@ -365,10 +369,12 @@
       gap: 14px;
       box-shadow: 0 16px 0 #070b14;
       text-align: center;
-      max-height: 90vh;
+      max-height: 85vh;
       overflow-y: auto;
       overflow-x: hidden;
       overscroll-behavior: contain;
+      touch-action: pan-y;
+      -webkit-overflow-scrolling: touch;
     }
 
     .modal-card h2 {
@@ -507,7 +513,7 @@
     <header>
       <div class="title-box">
         <h1>Эволюция 2048</h1>
-        <p>От клетки до Homo Sapiens</p>
+        <p>От Клетки до Homo Sapiens</p>
       </div>
       <div class="scores-group">
         <div class="score-badge">
@@ -577,16 +583,28 @@
   </div>
 
   <script>
-    // Инициализация Telegram WebApp и блокировка закрытия свайпом вниз
+    // Инициализация Telegram WebApp и комплексная блокировка закрытия свайпом
     function initTelegramWebApp() {
       if (window.Telegram && window.Telegram.WebApp) {
         const tg = window.Telegram.WebApp;
-        tg.ready();
-        tg.expand();
-        
-        // Отключает свайп вниз для закрытия окна (доступно с Telegram Bot API 7.7+)
-        if (typeof tg.disableVerticalSwipes === 'function') {
-          tg.disableVerticalSwipes();
+        try {
+          tg.ready();
+          tg.expand();
+
+          // Разворачиваем в полноэкранный режим (Mini Apps 2.0 / Bot API 8.0+)
+          if (typeof tg.requestFullscreen === 'function') {
+            tg.requestFullscreen();
+          }
+
+          // Выключаем вертикальные свайпы для закрытия (Bot API 7.7+)
+          if (typeof tg.disableVerticalSwipes === 'function') {
+            tg.disableVerticalSwipes();
+          }
+
+          // Включаем запрос подтверждения при закрытии (дополнительная страховка)
+          tg.isClosingConfirmationEnabled = true;
+        } catch (err) {
+          console.warn("Telegram WebApp init warning:", err);
         }
       }
     }
@@ -1117,7 +1135,16 @@
       }
     });
 
-    // Touch Swipes: блокировка жестов браузера и обработка движений в игре
+    // Глобальная блокировка дефолтных жестов iOS Safari / Telegram Webview
+    // Разрешаем вертикальный скролл ТОЛЬКО внутри модального окна (.modal-card)
+    document.addEventListener('touchmove', (e) => {
+      const scrollableModal = e.target.closest('.modal-card');
+      if (!scrollableModal) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    // Touch Swipes для игрового поля
     let touchStartX = 0;
     let touchStartY = 0;
     let touchStartTime = 0;
@@ -1127,10 +1154,10 @@
       touchStartX = e.touches[0].clientX;
       touchStartY = e.touches[0].clientY;
       touchStartTime = Date.now();
-    }, { passive: true });
+    }, { passive: false });
 
-    // КЛЮЧЕВОЙ ФИКС: touchmove с preventDefault блокирует закрытие вебвью Telegram при свайпе вниз
     boardElement.addEventListener('touchmove', (e) => {
+      // Предотвращаем любые нативные реакции браузера внутри игровой зоны
       e.preventDefault();
     }, { passive: false });
 
@@ -1145,7 +1172,7 @@
       const absDx = Math.abs(dx);
       const absDy = Math.abs(dy);
 
-      if (Math.max(absDx, absDy) > 25 && elapsed < 650) {
+      if (Math.max(absDx, absDy) > 20 && elapsed < 650) {
         if (absDx > absDy) {
           if (dx > 0) move(1);
           else move(3);
@@ -1154,40 +1181,7 @@
           else move(0);
         }
       }
-    }, { passive: true });
+    }, { passive: false });
 
     document.getElementById('btn-restart').addEventListener('click', startNewGame);
-    document.getElementById('btn-modal-restart').addEventListener('click', startNewGame);
-
-    btnKeepPlaying.addEventListener('click', () => {
-      keepPlayingAfterWin = true;
-      modalStatus.classList.remove('active');
-    });
-
-    document.getElementById('btn-encyclopedia').addEventListener('click', openEncyclopedia);
-    document.getElementById('btn-close-encyclopedia').addEventListener('click', () => {
-      modalEncyclopedia.classList.remove('active');
-    });
-
-    modalEncyclopedia.addEventListener('click', (e) => {
-      if (e.target === modalEncyclopedia) {
-        modalEncyclopedia.classList.remove('active');
-      }
-    });
-
-    modalStatus.addEventListener('click', (e) => {
-      if (e.target === modalStatus && keepPlayingAfterWin) {
-        modalStatus.classList.remove('active');
-      }
-    });
-
-    window.addEventListener('resize', () => {
-      renderBoard();
-    });
-
-    window.addEventListener('DOMContentLoaded', () => {
-      startNewGame();
-    });
-  </script>
-</body>
-</html>
+/* ... existing code ...
